@@ -54,9 +54,9 @@
 				gl_FragColor = vec4(texelColor.rgb * vLighting, texelColor.a); 
 			}
 		</script>
-		<video id="myVideo" width="300" height="" loop="loop" autoplay="autoplay">
-			<source src="Firefox.mp4" type="video/mp4"></source>
+		<video id="myVideo" width="300" height="300" loop="loop" autoplay="autoplay">
 			<source src="Firefox.ogv" type="video/ogg"></source>
+			<source src="Firefox.MP4" type="video/mp4"></source>			
 			<source src="Firefox.webm" type="video/webm"></source>
 			<object width="" height="" type="application/x-shockwave-flash" data="myvideo.swf">
 				<param name="movie" value="myvideo.swf" />
@@ -73,8 +73,19 @@
 			var cubeVerticesTextureCoordBuffer;
 			var cubeVerticesIndexBuffer;
 			var cubeVerticesIndexBuffer;
-			var cubeRotation = 0.0;
+			var cubeRotationX = 0.0;
+			var cubeRotationY = 0.0;
+			var cubeRotationZ = 0.0;
+			var cubeRotationXInc = 0.0;
+			var cubeRotationYInc = 0.0;
+			var cubeRotationZInc = 0.0;
 			var lastCubeUpdateTime = 0;
+			var lastX;
+			var lastY;
+			var thisX;
+			var thisY;
+			
+			var isMouseDown=false;
 
 			var cubeImage;
 			var cubeTexture;
@@ -99,7 +110,33 @@
 				videoElement=document.getElementById("myVideo")
 				
 				videoElement.addEventListener("canplaythrough",startVideo,true);
-				videoElement.addEventListener("ended",videoDone,true)
+				videoElement.addEventListener("ended",videoDone,true);
+				
+				canvas.onmousedown=function(e){
+					var ev=e||event;
+					isMouseDown=true;
+					lastX=ev.offsetX==null?ev.layerX:ev.offsetX;
+					lastY=ev.offsetY==null?ev.layerY:ev.offsetY;
+				};
+				canvas.onmousemove=function(e){
+					var ev=e||event;
+					if (!isMouseDown) {
+						return;
+					}
+					thisX=ev.offsetX==null?ev.layerX:ev.offsetX;
+					thisY=ev.offsetY==null?ev.layerY:ev.offsetY;
+					cubeRotationYInc=(thisX-lastX)/canvas.offsetWidth*50;
+					cubeRotationXInc=(thisY-lastY)/canvas.offsetHeight*50;
+					
+					drawScene()
+				};
+				canvas.onmouseup=function(e){
+					var ev=e||event;
+					isMouseDown=false;
+					cubeRotationX+=cubeRotationXInc;
+					cubeRotationY+=cubeRotationYInc;
+					cubeRotationXInc=cubeRotationYInc=0;
+				};
 				initWebGL(canvas); // Initialize the GL context
 
 				// Only continue if WebGL is available and working
@@ -360,7 +397,13 @@
 				gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
 				gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,videoElement);
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+				// gl.NEAREST is also allowed, instead of gl.LINEAR, as neither mipmap.
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+				// Prevents s-coordinate wrapping (repeating).
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+				// Prevents t-coordinate wrapping (repeating).
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+//				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
 				gl.generateMipmap(gl.TEXTURE_2D);
 				gl.bindTexture(gl.TEXTURE_2D, null);
 			}
@@ -409,7 +452,9 @@
 				// Save the current matrix, then rotate before we draw.
 
 				mvPushMatrix();
-				mvRotate(cubeRotation, [1, 0, 1]);
+				mvRotate(cubeRotationX+cubeRotationXInc, [1, 0, 0]);
+				mvRotate(cubeRotationY+cubeRotationYInc, [0, 1, 0]);
+				mvRotate(cubeRotationZ+cubeRotationZInc, [0, 0, 1]);
 
 				// Draw the cube by binding the array buffer to the cube's vertices
 				// array, setting attributes, and pushing it to GL.
@@ -449,7 +494,9 @@
 				if(lastCubeUpdateTime) {
 					var delta = currentTime - lastCubeUpdateTime;
 
-					cubeRotation += (30 * delta) / 1000.0;
+					cubeRotationX += (30 * delta) / 1000.0;
+					cubeRotationY += (30 * delta) / 1000.0;
+					cubeRotationZ += (30 * delta) / 1000.0;
 				}
 
 				lastCubeUpdateTime = currentTime;
